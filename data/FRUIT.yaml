@@ -1,0 +1,15 @@
+path: ../datasets/FRUIT # dataset root dir
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+
+nc: 5
+names: ['apple', 'banana', 'not apple', 'not banana', 'orange']
+
+roboflow:
+  workspace: hare-krishna-h1u5i
+  project: fruit-gjn8c
+  version: 3
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/hare-krishna-h1u5i/fruit-gjn8c/dataset/3
