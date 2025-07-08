@@ -1,0 +1,2051 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🍓 增强版草莓识别监控系统 - 完整版</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #ff6b6b 0%, #feca57 50%, #48ca48 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-rows: auto auto 1fr;
+            gap: 20px;
+            min-height: 100vh;
+        }
+
+        .header {
+            grid-column: 1 / -1;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .header h1 {
+            text-align: center;
+            background: linear-gradient(45deg, #ff6b6b, #feca57, #48ca48);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 15px;
+            background: #f8f9fa;
+            border-radius: 20px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .status-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ff4757;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connected {
+            background: #2ed573;
+        }
+
+        .status-dot.warning {
+            background: #ffa502;
+        }
+
+        .panel {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s ease;
+        }
+
+        .panel:hover {
+            transform: translateY(-5px);
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .panel-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .panel-badge {
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+
+        /* 传感器面板 */
+        .sensors-panel {
+            grid-column: 1;
+            grid-row: 2;
+        }
+
+        .sensor-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+            flex-grow: 1;
+        }
+
+        .sensor-card {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 15px;
+            border-radius: 12px;
+            text-align: center;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .sensor-card.optimal {
+            border-color: #28a745;
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+        }
+
+        .sensor-card.good {
+            border-color: #17a2b8;
+            background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
+        }
+
+        .sensor-card.warning {
+            border-color: #ffc107;
+            background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+        }
+
+        .sensor-card.danger {
+            border-color: #dc3545;
+            background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+        }
+
+        .sensor-icon {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+
+        .sensor-name {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 3px;
+        }
+
+        .sensor-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 3px;
+        }
+
+        .sensor-status {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.7);
+        }
+
+        /* 通用检测面板 */
+        .detection-panel {
+            grid-column: 2;
+            grid-row: 2;
+        }
+
+        /* 🍓 草莓检测面板 */
+        .strawberry-panel {
+            grid-column: 3;
+            grid-row: 2;
+            border: 3px solid #ff6b6b;
+        }
+
+        .strawberry-panel .panel-title {
+            color: #ff6b6b;
+        }
+
+        .strawberry-panel .panel-badge {
+            background: #ff6b6b;
+        }
+
+        .video-container {
+            flex-grow: 1;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            min-height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .video-frame {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .video-overlay {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+        }
+
+        .detection-info {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .detection-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 8px;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 8px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+            transition: transform 0.2s ease;
+        }
+
+        .stat-item:hover {
+            transform: scale(1.05);
+        }
+
+        .stat-value {
+            font-size: 16px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 10px;
+            color: #666;
+            margin-top: 3px;
+        }
+
+        /* 🎯 通用检测类别统计样式 */
+        .object-categories {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .object-category-item {
+            text-align: center;
+            padding: 8px;
+            background: white;
+            border-radius: 8px;
+            border: 2px solid #e9ecef;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .object-category-item:hover {
+            transform: scale(1.05);
+        }
+
+        .object-category-item.person {
+            border-color: #fd79a8;
+            background: linear-gradient(135deg, #ffeef4 0%, #fdd8e7 100%);
+        }
+
+        .object-category-item.car {
+            border-color: #74b9ff;
+            background: linear-gradient(135deg, #e6f3ff 0%, #cce7ff 100%);
+        }
+
+        .object-category-item.bottle {
+            border-color: #00b894;
+            background: linear-gradient(135deg, #e6f7f3 0%, #ccf0e6 100%);
+        }
+
+        .object-category-item.chair {
+            border-color: #e17055;
+            background: linear-gradient(135deg, #fdf2f0 0%, #fbe5e1 100%);
+        }
+
+        .object-category-item.phone {
+            border-color: #a29bfe;
+            background: linear-gradient(135deg, #f4f3ff 0%, #e9e6ff 100%);
+        }
+
+        .object-category-item.book {
+            border-color: #fdcb6e;
+            background: linear-gradient(135deg, #fffbf0 0%, #fff2d9 100%);
+        }
+
+        .object-category-item.laptop {
+            border-color: #6c5ce7;
+            background: linear-gradient(135deg, #f1f0ff 0%, #e2e0ff 100%);
+        }
+
+        .object-category-item.common {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #f0f1ff 0%, #e0e3ff 100%);
+        }
+
+        .category-icon {
+            font-size: 18px;
+            margin-bottom: 4px;
+        }
+
+        .category-name {
+            font-size: 11px;
+            color: #666;
+            margin-bottom: 2px;
+            font-weight: 500;
+        }
+
+        .category-count {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .no-detections {
+            grid-column: 1 / -1;
+        }
+
+        /* 🍓 草莓特殊样式 */
+        .strawberry-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+
+        .strawberry-stat-item {
+            text-align: center;
+            padding: 8px;
+            background: white;
+            border-radius: 8px;
+            border: 2px solid #e9ecef;
+            transition: all 0.2s ease;
+        }
+
+        .strawberry-stat-item.ripe {
+            border-color: #28a745;
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+        }
+
+        .strawberry-stat-item.nearly-ripe {
+            border-color: #ffc107;
+            background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+        }
+
+        .strawberry-stat-item.unripe {
+            border-color: #17a2b8;
+            background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
+        }
+
+        .strawberry-stat-item.rotten {
+            border-color: #dc3545;
+            background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+        }
+
+        .strawberry-stat-item.harvest {
+            border-color: #ff6b6b;
+            background: linear-gradient(135deg, #ffecec 0%, #ffd3d3 100%);
+        }
+
+        .strawberry-stat-item.quality {
+            border-color: #48ca48;
+            background: linear-gradient(135deg, #e8f5e8 0%, #d1f2d1 100%);
+        }
+
+        /* 草莓控制按钮 */
+        .strawberry-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .strawberry-toggle {
+            padding: 8px 15px;
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .strawberry-toggle:hover {
+            background: #ff5252;
+            transform: translateY(-2px);
+        }
+
+        .strawberry-toggle:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* AI 对话面板 */
+        .ai-panel {
+            grid-column: 1 / -1;
+            grid-row: 3;
+            max-height: 600px;
+        }
+
+        .ai-config {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .ai-config input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .ai-config button {
+            padding: 8px 15px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+
+        .ai-config button:hover {
+            background: #5a6fd8;
+        }
+
+        .ai-config button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .chat-container {
+            display: flex;
+            gap: 20px;
+            flex-grow: 1;
+            min-height: 400px;
+        }
+
+        .chat-messages {
+            flex: 2;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+            overflow-y: auto;
+            background: #fafafa;
+            max-height: 400px;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 12px;
+            border-radius: 8px;
+            max-width: 80%;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .message.user {
+            background: #667eea;
+            color: white;
+            margin-left: auto;
+            text-align: right;
+        }
+
+        .message.ai {
+            background: white;
+            border: 1px solid #e9ecef;
+        }
+
+        .message.system {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            color: #666;
+            font-style: italic;
+            text-align: center;
+            max-width: 100%;
+        }
+
+        .message-time {
+            font-size: 11px;
+            opacity: 0.7;
+            margin-top: 5px;
+        }
+
+        .chat-input-container {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .chat-send {
+            padding: 12px 20px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+
+        .chat-send:hover {
+            background: #218838;
+        }
+
+        .chat-send:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .system-info {
+            flex: 1;
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .info-section {
+            margin-bottom: 20px;
+        }
+
+        .info-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .info-list {
+            list-style: none;
+        }
+
+        .info-list li {
+            padding: 5px 0;
+            font-size: 14px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .info-list li:last-child {
+            border-bottom: none;
+        }
+
+        .loading {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #667eea;
+        }
+
+        .loading-dots {
+            display: flex;
+            gap: 3px;
+        }
+
+        .loading-dots span {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #667eea;
+            animation: bounce 1.4s ease-in-out infinite both;
+        }
+
+        .loading-dots span:nth-child(1) { animation-delay: -0.32s; }
+        .loading-dots span:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 1400px) {
+            .container {
+                grid-template-columns: 1fr 1fr;
+                grid-template-rows: auto auto auto auto;
+            }
+
+            .sensors-panel {
+                grid-column: 1;
+                grid-row: 2;
+            }
+
+            .detection-panel {
+                grid-column: 2;
+                grid-row: 2;
+            }
+
+            .strawberry-panel {
+                grid-column: 1 / -1;
+                grid-row: 3;
+            }
+
+            .ai-panel {
+                grid-column: 1 / -1;
+                grid-row: 4;
+            }
+        }
+
+        @media (max-width: 900px) {
+            .container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto auto auto auto;
+            }
+
+            .sensors-panel, .detection-panel, .strawberry-panel {
+                grid-column: 1;
+            }
+
+            .sensors-panel { grid-row: 2; }
+            .detection-panel { grid-row: 3; }
+            .strawberry-panel { grid-row: 4; }
+            .ai-panel { grid-row: 5; }
+
+            .chat-container {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 头部状态栏 -->
+        <div class="header">
+            <h1>🍓 增强版草莓识别监控系统 - 完整版</h1>
+            <div class="status-bar">
+                <div class="status-item">
+                    <div class="status-dot" id="mqttStatus"></div>
+                    <span>MQTT: <span id="mqttText">未连接</span></span>
+                </div>
+                <div class="status-item">
+                    <div class="status-dot" id="cameraStatus"></div>
+                    <span>相机: <span id="cameraText">离线</span></span>
+                </div>
+                <div class="status-item">
+                    <div class="status-dot" id="detectionStatus"></div>
+                    <span>通用检测: <span id="detectionText">待机</span></span>
+                </div>
+                <div class="status-item">
+                    <div class="status-dot" id="strawberryStatus"></div>
+                    <span>🍓检测: <span id="strawberryText">待机</span></span>
+                </div>
+                <div class="status-item">
+                    <div class="status-dot" id="aiStatus"></div>
+                    <span>AI: <span id="aiText">未连接</span></span>
+                </div>
+                <div class="status-item">
+                    <span>运行时间: <span id="uptime">00:00:00</span></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 传感器面板 -->
+        <div class="panel sensors-panel">
+            <div class="panel-header">
+                <div class="panel-title">📊 传感器监控</div>
+                <div class="panel-badge" id="sensorBadge">等待数据</div>
+            </div>
+            <div class="sensor-grid">
+                <div class="sensor-card" id="temperatureCard">
+                    <div class="sensor-icon">🌡️</div>
+                    <div class="sensor-name">温度</div>
+                    <div class="sensor-value" id="temperatureValue">--</div>
+                    <div class="sensor-status" id="temperatureStatus">等待数据</div>
+                </div>
+                <div class="sensor-card" id="humidityCard">
+                    <div class="sensor-icon">💧</div>
+                    <div class="sensor-name">湿度</div>
+                    <div class="sensor-value" id="humidityValue">--</div>
+                    <div class="sensor-status" id="humidityStatus">等待数据</div>
+                </div>
+                <div class="sensor-card" id="lightCard">
+                    <div class="sensor-icon">☀️</div>
+                    <div class="sensor-name">光照</div>
+                    <div class="sensor-value" id="lightValue">--</div>
+                    <div class="sensor-status" id="lightStatus">等待数据</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 通用检测面板 -->
+        <div class="panel detection-panel">
+            <div class="panel-header">
+                <div class="panel-title">🎯 通用物体检测</div>
+                <div class="panel-badge" id="detectionBadge">待机</div>
+            </div>
+
+            <div class="video-container">
+                <img id="videoFrame" class="video-frame" style="display: none;" alt="检测画面">
+                <div id="videoPlaceholder" style="color: white; text-align: center;">
+                    <div style="font-size: 36px; margin-bottom: 15px;">📷</div>
+                    <div>等待图像数据...</div>
+                </div>
+                <div class="video-overlay" id="videoOverlay" style="display: none;">
+                    <div id="frameInfo">Frame: 0</div>
+                    <div id="detectionCount">检测: 0 个物体</div>
+                </div>
+            </div>
+
+            <div class="detection-info">
+                <!-- 基础统计 -->
+                <div class="detection-stats">
+                    <div class="stat-item">
+                        <div class="stat-value" id="totalDetections">0</div>
+                        <div class="stat-label">总检测数</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="currentDetections">0</div>
+                        <div class="stat-label">当前检测</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="processingTime">0.00s</div>
+                        <div class="stat-label">处理时间</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="currentImage">--</div>
+                        <div class="stat-label">当前图片</div>
+                    </div>
+                </div>
+
+                <!-- 🎯 检测类别统计 -->
+                <div style="margin-top: 15px;">
+                    <div style="font-size: 14px; font-weight: 600; color: #667eea; margin-bottom: 10px; text-align: center;">
+                        🎯 检测类别统计
+                    </div>
+                    <div class="object-categories" id="objectCategories">
+                        <div class="no-detections" style="text-align: center; color: #666; font-size: 12px; padding: 10px;">
+                            暂无检测结果
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 🍓 草莓检测面板 -->
+        <div class="panel strawberry-panel">
+            <div class="panel-header">
+                <div class="panel-title">🍓 草莓成熟度检测</div>
+                <div class="panel-badge" id="strawberryBadge">待机</div>
+            </div>
+
+            <div class="strawberry-controls">
+                <button class="strawberry-toggle" id="strawberryToggle" onclick="toggleStrawberryDetection()">
+                    启用草莓检测
+                </button>
+                <button class="strawberry-toggle" onclick="requestStrawberryStatus()">
+                    刷新状态
+                </button>
+                <button class="strawberry-toggle" onclick="debugStrawberryClasses()">
+                    🔍 调试信息
+                </button>
+            </div>
+
+            <div class="video-container">
+                <img id="strawberryFrame" class="video-frame" style="display: none;" alt="草莓检测画面">
+                <div id="strawberryPlaceholder" style="color: white; text-align: center;">
+                    <div style="font-size: 36px; margin-bottom: 15px;">🍓</div>
+                    <div>等待草莓检测...</div>
+                </div>
+                <div class="video-overlay" id="strawberryOverlay" style="display: none;">
+                    <div id="strawberryFrameInfo">🍓 检测中...</div>
+                    <div id="strawberryCount">草莓: 0 个</div>
+                </div>
+            </div>
+
+            <div class="detection-info">
+                <!-- 🍓 当前检测统计 -->
+                <div style="margin-top: 15px;">
+                    <div style="font-size: 14px; font-weight: 600; color: #ff6b6b; margin-bottom: 10px; text-align: center;">
+                        🍓 当前检测成熟度分布
+                    </div>
+                    <div class="strawberry-stats">
+                        <div class="strawberry-stat-item ripe">
+                            <div class="stat-value" id="ripeCount">0</div>
+                            <div class="stat-label">🍓 成熟</div>
+                        </div>
+                        <div class="strawberry-stat-item nearly-ripe">
+                            <div class="stat-value" id="nearlyRipeCount">0</div>
+                            <div class="stat-label">🟡 接近成熟</div>
+                        </div>
+                        <div class="strawberry-stat-item unripe">
+                            <div class="stat-value" id="unripeCount">0</div>
+                            <div class="stat-label">🔵 未成熟</div>
+                        </div>
+                        <div class="strawberry-stat-item rotten">
+                            <div class="stat-value" id="rottenCount">0</div>
+                            <div class="stat-label">🔴 腐烂</div>
+                        </div>
+                        <div class="strawberry-stat-item harvest">
+                            <div class="stat-value" id="harvestReady">0</div>
+                            <div class="stat-label">📦 可收获</div>
+                        </div>
+                        <div class="strawberry-stat-item quality">
+                            <div class="stat-value" id="qualityScore">0%</div>
+                            <div class="stat-label">✨ 质量评分</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI 对话面板 -->
+        <div class="panel ai-panel">
+            <div class="panel-header">
+                <div class="panel-title">🧠 DeepSeek R1 AI 助手</div>
+                <div class="panel-badge" id="aiBadge">未连接</div>
+            </div>
+
+            <div class="ai-config">
+                <input type="text" id="aiApiUrl" placeholder="API地址" value="http://localhost:11434">
+                <input type="text" id="aiModelName" placeholder="模型名称" value="deepseek-r1:1.5b">
+                <button id="testAiBtn" onclick="testAI()">测试连接</button>
+                <button onclick="askGeneralAnalysis()">🎯 通用分析</button>
+                <button onclick="askStrawberryAdvice()">🍓 草莓建议</button>
+            </div>
+
+            <div class="chat-container">
+                <div style="flex: 2;">
+                    <div class="chat-messages" id="chatMessages">
+                        <div class="message system">
+                            <div>🤖 增强版AI助手已准备就绪！我可以帮您分析传感器数据、解读检测结果、提供草莓种植建议等。</div>
+                            <div class="message-time" id="welcomeTime"></div>
+                        </div>
+                    </div>
+                    <div class="chat-input-container">
+                        <textarea id="chatInput" class="chat-input" placeholder="输入您的问题...例如：分析当前草莓状况、如何提高草莓质量、什么时候收获？"></textarea>
+                        <button id="chatSend" class="chat-send" onclick="sendAIMessage()">发送</button>
+                    </div>
+                </div>
+
+                <div class="system-info">
+                    <div class="info-section">
+                        <div class="info-title">🔧 系统状态</div>
+                        <ul class="info-list" id="systemInfoList">
+                            <li>正在加载系统信息...</li>
+                        </ul>
+                    </div>
+
+                    <div class="info-section">
+                        <div class="info-title">🍓 草莓统计</div>
+                        <ul class="info-list" id="strawberryInfoList">
+                            <li>等待草莓检测数据...</li>
+                        </ul>
+                    </div>
+
+                    <div class="info-section">
+                        <div class="info-title">📈 最近检测</div>
+                        <ul class="info-list" id="recentDetectionsList">
+                            <li>暂无检测结果</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let socket;
+        let systemStartTime = Date.now();
+        let isAIProcessing = false;
+        let strawberryEnabled = false;
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            const welcomeTime = document.getElementById('welcomeTime');
+            welcomeTime.textContent = new Date().toLocaleTimeString();
+
+            // 连接WebSocket
+            initializeSocket();
+
+            // 启动状态更新
+            startStatusUpdates();
+
+            // 聊天输入框事件
+            const chatInput = document.getElementById('chatInput');
+            chatInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendAIMessage();
+                }
+            });
+
+            // 初始测试AI连接
+            setTimeout(testAI, 1000);
+        });
+
+        // WebSocket连接
+        function initializeSocket() {
+            try {
+                socket = io();
+
+                socket.on('connect', function() {
+                    console.log('✅ WebSocket连接成功');
+                    addSystemMessage('✅ 已连接到完整版服务器');
+                });
+
+                socket.on('disconnect', function() {
+                    console.log('❌ WebSocket连接断开');
+                    addSystemMessage('❌ 与服务器断开连接');
+                });
+
+                // 传感器数据更新
+                socket.on('all_sensors', function(data) {
+                    updateSensorDisplay(data);
+                });
+
+                socket.on('sensor_update', function(data) {
+                    updateSingleSensor(data.sensor_type, data.data);
+                });
+
+                // 通用检测结果更新
+                socket.on('detection_update', function(data) {
+                    updateDetectionDisplay(data);
+                });
+
+                // 🍓 草莓检测结果更新
+                socket.on('strawberry_update', function(data) {
+                    console.log('🍓 收到草莓更新数据:', data);
+                    updateStrawberryDisplay(data);
+                });
+
+                // 视频帧更新
+                socket.on('video_frame', function(data) {
+                    updateVideoFrame(data);
+                });
+
+                // 🎯 通用检测标注图像更新
+                socket.on('general_frame', function(data) {
+                    updateGeneralFrame(data);
+                });
+
+                // 🍓 草莓检测标注图像更新
+                socket.on('strawberry_frame', function(data) {
+                    console.log('🍓 收到草莓标注图像');
+                    updateStrawberryFrame(data);
+                });
+
+                // AI响应
+                socket.on('ai_response', function(data) {
+                    handleAIResponse(data);
+                });
+
+                socket.on('ai_processing', function(data) {
+                    addAIMessage(data.message, 'user');
+                    addLoadingMessage();
+                });
+
+                socket.on('ai_status', function(data) {
+                    updateAIStatus(data);
+                });
+
+                // 系统状态更新
+                socket.on('status_update', function(data) {
+                    updateSystemStatus(data);
+                });
+
+                socket.on('mqtt_status', function(data) {
+                    updateMQTTStatus(data);
+                });
+
+                socket.on('camera_status', function(data) {
+                    updateCameraStatus(data);
+                });
+
+            } catch (error) {
+                console.error('❌ WebSocket初始化失败:', error);
+                addSystemMessage('❌ WebSocket初始化失败');
+            }
+        }
+
+        // 🍓 草莓检测相关函数 - 修复版
+        async function toggleStrawberryDetection() {
+            const btn = document.getElementById('strawberryToggle');
+            btn.disabled = true;
+            btn.textContent = '切换中...';
+
+            try {
+                const response = await fetch('/api/strawberry/toggle', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    strawberryEnabled = result.enabled;
+                    btn.textContent = strawberryEnabled ? '禁用草莓检测' : '启用草莓检测';
+
+                    updateStrawberryStatus();
+                    addSystemMessage(`🍓 ${result.message}`);
+                } else {
+                    addSystemMessage(`❌ 草莓检测切换失败: ${result.error}`);
+                }
+            } catch (error) {
+                addSystemMessage(`❌ 草莓检测切换失败: ${error.message}`);
+                console.error('❌ 草莓检测切换错误:', error);
+            }
+
+            btn.disabled = false;
+        }
+
+        async function requestStrawberryStatus() {
+            try {
+                const response = await fetch('/api/strawberry/status');
+                const status = await response.json();
+
+                strawberryEnabled = status.enabled;
+
+                updateStrawberryStatus();
+
+                const statusMsg = `🍓 草莓检测状态: ${status.enabled ? '已启用' : '已禁用'}，` +
+                                 `模型: ${status.model_loaded ? '已加载' : '未加载'}`;
+
+                addSystemMessage(statusMsg);
+
+                console.log('🍓 草莓检测状态:', status);
+
+            } catch (error) {
+                addSystemMessage(`❌ 获取草莓状态失败: ${error.message}`);
+                console.error('❌ 获取草莓状态错误:', error);
+            }
+        }
+
+        function updateStrawberryStatus() {
+            const statusDot = document.getElementById('strawberryStatus');
+            const statusText = document.getElementById('strawberryText');
+            const badge = document.getElementById('strawberryBadge');
+            const toggle = document.getElementById('strawberryToggle');
+
+            if (strawberryEnabled) {
+                statusDot.classList.add('connected');
+                statusText.textContent = '已启用';
+                badge.textContent = '已启用';
+                badge.style.background = '#28a745';
+                toggle.textContent = '禁用草莓检测';
+            } else {
+                statusDot.classList.remove('connected');
+                statusText.textContent = '已禁用';
+                badge.textContent = '已禁用';
+                badge.style.background = '#dc3545';
+                toggle.textContent = '启用草莓检测';
+            }
+        }
+
+        function updateStrawberryDisplay(data) {
+            console.log('🍓 更新草莓显示数据:', data);
+
+            // 获取统计数据
+            const stats = data.stats || {};
+            const currentRipeness = stats.current_ripeness || {};
+            const totalRipeness = stats.ripeness_counts || {};
+
+            // 更新当前帧的草莓成熟度分布
+            document.getElementById('ripeCount').textContent = currentRipeness['Ripe'] || 0;
+            document.getElementById('nearlyRipeCount').textContent = currentRipeness['Nearly Ripe'] || 0;
+            document.getElementById('unripeCount').textContent = currentRipeness['Unripe'] || 0;
+            document.getElementById('rottenCount').textContent = currentRipeness['Rotten'] || 0;
+
+            // 更新质量指标
+            document.getElementById('harvestReady').textContent = stats.current_harvest_ready || 0;
+            document.getElementById('qualityScore').textContent = `${stats.current_quality_score || 0}%`;
+
+            // 更新badge
+            const badge = document.getElementById('strawberryBadge');
+            if (data.detection_count > 0) {
+                badge.textContent = `🍓 ${data.detection_count} 个草莓`;
+                badge.style.background = '#ff6b6b';
+            } else {
+                badge.textContent = strawberryEnabled ? '未检测到草莓' : '已禁用';
+                badge.style.background = strawberryEnabled ? '#6c757d' : '#dc3545';
+            }
+
+            // 更新右侧信息栏的草莓统计
+            updateStrawberryInfo(stats, currentRipeness, totalRipeness);
+
+            console.log('🍓 草莓检测数据更新完成');
+        }
+
+        function updateStrawberryInfo(stats, currentRipeness, totalRipeness) {
+            const list = document.getElementById('strawberryInfoList');
+
+            if (!list) {
+                console.warn('⚠️ 未找到草莓信息列表元素');
+                return;
+            }
+
+            // 计算总数
+            const currentTotal = Object.values(currentRipeness).reduce((sum, count) => sum + count, 0);
+            const totalCount = Object.values(totalRipeness).reduce((sum, count) => sum + count, 0);
+
+            // 创建信息列表
+            const infoItems = [
+                `🍓 当前检测: ${currentTotal} 个草莓`,
+                `🟢 当前成熟: ${currentRipeness['Ripe'] || 0} 个`,
+                `🟡 接近成熟: ${currentRipeness['Nearly Ripe'] || 0} 个`,
+                `🔵 未成熟: ${currentRipeness['Unripe'] || 0} 个`,
+                `🔴 腐烂: ${currentRipeness['Rotten'] || 0} 个`,
+                `✨ 当前质量: ${stats.current_quality_score || 0}%`,
+                `📦 可收获: ${stats.current_harvest_ready || 0} 个`,
+                `📊 历史总数: ${totalCount} 个`,
+                `⏱️ 处理时间: ${(stats.processing_time || 0).toFixed(2)}s`
+            ];
+
+            list.innerHTML = infoItems.map(item => `<li>${item}</li>`).join('');
+        }
+
+        async function debugStrawberryClasses() {
+            try {
+                const response = await fetch('/api/strawberry/debug');
+                const debugInfo = await response.json();
+
+                console.log('🍓 草莓检测调试信息:', debugInfo);
+
+                let debugMessage = `🍓 草莓检测调试信息：\n\n`;
+
+                // 配置信息
+                debugMessage += `🔧 配置信息：\n`;
+                debugMessage += `- 检测状态: ${debugInfo.enabled ? '已启用' : '已禁用'}\n`;
+                debugMessage += `- 模型加载: ${debugInfo.model_loaded ? '已加载' : '未加载'}\n`;
+                debugMessage += `- 模型路径: ${debugInfo.model_path}\n`;
+                debugMessage += `- 配置文件: ${debugInfo.yaml_path}\n`;
+                debugMessage += `- YAML存在: ${debugInfo.yaml_exists ? '是' : '否'}\n\n`;
+
+                // 类别配置
+                debugMessage += `🍓 检测类别 (${debugInfo.class_count}个)：\n`;
+                debugInfo.classes.forEach((className, index) => {
+                    debugMessage += `- ID ${index}: ${className}\n`;
+                });
+
+                // 当前检测分布
+                debugMessage += `\n📊 当前帧检测分布：\n`;
+                for (const [className, count] of Object.entries(debugInfo.current_ripeness || {})) {
+                    debugMessage += `- ${className}: ${count}个\n`;
+                }
+
+                // 历史累计统计
+                debugMessage += `\n📈 历史累计统计：\n`;
+                for (const [className, count] of Object.entries(debugInfo.total_ripeness || {})) {
+                    debugMessage += `- ${className}: ${count}个\n`;
+                }
+
+                // 性能信息
+                debugMessage += `\n⏱️ 性能信息：\n`;
+                debugMessage += `- 处理时间: ${(debugInfo.processing_time || 0).toFixed(2)}s\n`;
+                debugMessage += `- 总检测数: ${debugInfo.total_detections || 0}\n`;
+
+                // 最近检测记录
+                if (debugInfo.last_detections && debugInfo.last_detections.length > 0) {
+                    debugMessage += `\n🔍 最近检测记录：\n`;
+                    debugInfo.last_detections.forEach((detection, index) => {
+                        debugMessage += `${index + 1}. ${detection.class_name} (置信度: ${(detection.confidence * 100).toFixed(1)}%)\n`;
+                    });
+                } else {
+                    debugMessage += `\n🔍 最近检测记录：暂无\n`;
+                }
+
+                alert(debugMessage);
+                addSystemMessage('🔍 草莓调试信息已显示');
+
+            } catch (error) {
+                console.error('❌ 获取调试信息失败:', error);
+                addSystemMessage(`❌ 获取调试信息失败: ${error.message}`);
+            }
+        }
+
+        function updateStrawberryFrame(data) {
+            const strawberryFrame = document.getElementById('strawberryFrame');
+            const strawberryPlaceholder = document.getElementById('strawberryPlaceholder');
+            const strawberryOverlay = document.getElementById('strawberryOverlay');
+            const strawberryFrameInfo = document.getElementById('strawberryFrameInfo');
+            const strawberryCount = document.getElementById('strawberryCount');
+
+            if (data.frame) {
+                try {
+                    strawberryFrame.src = 'data:image/jpeg;base64,' + data.frame;
+                    strawberryFrame.style.display = 'block';
+                    strawberryPlaceholder.style.display = 'none';
+                    strawberryOverlay.style.display = 'block';
+
+                    strawberryFrameInfo.textContent = `🍓 草莓标注: ${data.image_filename || 'unknown'}`;
+                    strawberryCount.textContent = `草莓: ${data.strawberry_count || 0} 个`;
+
+                    console.log('🍓 草莓检测标注图像已更新');
+                } catch (error) {
+                    console.error('🍓 草莓图像更新失败:', error);
+                }
+            }
+        }
+
+        // AI助手增强版分析函数 - 带数据缺失检测
+        async function askGeneralAnalysis() {
+            let detectionData = null;
+            let sensorsData = null;
+            let missingData = [];
+            let contextInfo = "请基于以下数据提供通用检测安全性和监控分析：\n\n";
+
+            // 尝试获取检测数据
+            try {
+                const detectionResponse = await fetch('/api/detections');
+                if (detectionResponse.ok) {
+                    const responseData = await detectionResponse.json();
+                    // 检查是否有错误信息
+                    if (responseData.error) {
+                        missingData.push(`通用检测数据 (${responseData.error})`);
+                        console.warn('⚠️ 通用检测数据有错误:', responseData.error);
+                    } else {
+                        detectionData = responseData;
+                        console.log('✅ 成功获取通用检测数据');
+                    }
+                } else {
+                    missingData.push('通用检测数据');
+                    console.warn('⚠️ 通用检测数据获取失败');
+                }
+            } catch (error) {
+                missingData.push('通用检测数据');
+                console.error('❌ 通用检测数据请求异常:', error);
+            }
+
+            // 尝试获取传感器数据
+            try {
+                const sensorsResponse = await fetch('/api/sensors');
+                if (sensorsResponse.ok) {
+                    const responseData = await sensorsResponse.json();
+                    // 检查是否有错误或警告信息
+                    if (responseData.error) {
+                        missingData.push(`环境传感器数据 (${responseData.error})`);
+                        console.warn('⚠️ 传感器数据有错误:', responseData.error);
+                    } else if (responseData.warning) {
+                        missingData.push(`环境传感器数据 (${responseData.warning})`);
+                        console.warn('⚠️ 传感器数据警告:', responseData.warning);
+                    } else {
+                        sensorsData = responseData;
+                        console.log('✅ 成功获取传感器数据');
+                    }
+                } else {
+                    missingData.push('环境传感器数据');
+                    console.warn('⚠️ 传感器数据获取失败');
+                }
+            } catch (error) {
+                missingData.push('环境传感器数据');
+                console.error('❌ 传感器数据请求异常:', error);
+            }
+
+            // 处理数据缺失情况
+            if (missingData.length > 0) {
+                contextInfo += `⚠️ 数据缺失警告：\n`;
+                missingData.forEach(dataType => {
+                    contextInfo += `- 缺失：${dataType}\n`;
+                });
+                contextInfo += `\n请基于可用数据进行分析，并说明数据缺失对分析结果的影响。\n\n`;
+            }
+
+            // === 通用检测数据分析 ===
+            if (detectionData) {
+                contextInfo += "🎯 通用物体检测数据：\n";
+                if (detectionData.detection_count > 0) {
+                    contextInfo += `📊 检测概况：\n`;
+                    contextInfo += `- 总检测物体数: ${detectionData.detection_count}个\n`;
+                    contextInfo += `- 处理时间: ${(detectionData.detection_stats?.processing_time || 0).toFixed(2)}秒\n`;
+                    contextInfo += `- 历史总检测数: ${detectionData.detection_stats?.total_detections || 0}个\n\n`;
+
+                    // 当前检测到的物体类别和数量
+                    if (detectionData.current_objects && Object.keys(detectionData.current_objects).length > 0) {
+                        contextInfo += `🎯 当前检测到的物体类别和数量：\n`;
+                        for (const [className, count] of Object.entries(detectionData.current_objects)) {
+                            contextInfo += `- ${className}: ${count}个\n`;
+                        }
+                        contextInfo += `\n`;
+                    }
+
+                    // 历史累计检测统计
+                    if (detectionData.category_distribution && Object.keys(detectionData.category_distribution).length > 0) {
+                        contextInfo += `📈 历史检测类别分布比例：\n`;
+                        for (const [className, percentage] of Object.entries(detectionData.category_distribution)) {
+                            contextInfo += `- ${className}: ${percentage}%\n`;
+                        }
+                        contextInfo += `\n`;
+                    }
+
+                    // 检测总结
+                    if (detectionData.summary) {
+                        contextInfo += `📋 检测总结: ${detectionData.summary}\n\n`;
+                    }
+                } else {
+                    contextInfo += "❌ 当前未检测到任何物体\n\n";
+                }
+            } else {
+                contextInfo += "❌ 通用检测数据不可用\n\n";
+            }
+
+            // === 环境传感器数据分析 ===
+            if (sensorsData) {
+                contextInfo += "🌡️ 环境监测数据：\n";
+                const sensors = sensorsData.sensor_data || {};
+
+                // 温度数据
+                if (sensors.temperature && sensors.temperature.value !== null) {
+                    contextInfo += `- 温度: ${sensors.temperature.value}°C (状态: ${getStatusText(sensors.temperature.status)})\n`;
+                } else {
+                    contextInfo += `- 温度: 无数据\n`;
+                }
+
+                // 湿度数据
+                if (sensors.humidity && sensors.humidity.value !== null) {
+                    contextInfo += `- 湿度: ${sensors.humidity.value}% (状态: ${getStatusText(sensors.humidity.status)})\n`;
+                } else {
+                    contextInfo += `- 湿度: 无数据\n`;
+                }
+
+                // 光照数据
+                if (sensors.light && sensors.light.value !== null) {
+                    contextInfo += `- 光照: ${sensors.light.value}lux (状态: ${getStatusText(sensors.light.status)})\n`;
+                } else {
+                    contextInfo += `- 光照: 无数据\n`;
+                }
+                contextInfo += `\n`;
+            } else {
+                contextInfo += "❌ 环境传感器数据不可用\n\n";
+            }
+
+            // === 分析要求 ===
+            contextInfo += "🔍 请进行综合分析并提供建议：\n\n";
+
+            if (detectionData) {
+                contextInfo += "🎯 检测结果分析：\n";
+                contextInfo += "1. 环境安全性评估（是否有异常物体）\n";
+                contextInfo += "2. 监控区域状况分析\n";
+                contextInfo += "3. 潜在风险识别\n";
+                contextInfo += "4. 如果检测到人员，分析活动模式\n";
+                contextInfo += "5. 设备或工具的使用情况分析\n\n";
+            }
+
+            if (sensorsData) {
+                contextInfo += "🌡️ 环境条件分析：\n";
+                contextInfo += "1. 评估当前环境参数是否正常\n";
+                contextInfo += "2. 分析环境对监控效果的影响\n";
+                contextInfo += "3. 提供环境优化建议\n\n";
+            }
+
+            contextInfo += "💡 综合建议：\n";
+            contextInfo += "1. 监控系统优化建议\n";
+            contextInfo += "2. 安全防护措施\n";
+            contextInfo += "3. 异常情况处理方案";
+
+            if (missingData.length > 0) {
+                contextInfo += `\n\n⚠️ 注意：由于缺失${missingData.join('、')}，请在分析中说明这些数据缺失对结论的影响。`;
+            }
+
+            document.getElementById('chatInput').value = contextInfo;
+            sendAIMessage();
+        }
+
+        // AI助手询问草莓建议函数 - 增强版（带数据缺失检测）
+        async function askStrawberryAdvice() {
+            let strawberryData = null;
+            let sensorsData = null;
+            let missingData = [];
+            let contextInfo = "请基于以下数据提供专业的草莓种植分析和建议：\n\n";
+
+            // 尝试获取草莓检测数据
+            try {
+                const strawberryResponse = await fetch('/api/strawberry/detections');
+                if (strawberryResponse.ok) {
+                    const responseData = await strawberryResponse.json();
+                    // 检查是否有错误信息
+                    if (responseData.error) {
+                        missingData.push(`草莓检测数据 (${responseData.error})`);
+                        console.warn('⚠️ 草莓检测数据有错误:', responseData.error);
+                    } else {
+                        strawberryData = responseData;
+                        console.log('✅ 成功获取草莓检测数据');
+                    }
+                } else {
+                    missingData.push('草莓检测数据');
+                    console.warn('⚠️ 草莓检测数据获取失败');
+                }
+            } catch (error) {
+                missingData.push('草莓检测数据');
+                console.error('❌ 草莓检测数据请求异常:', error);
+            }
+
+            // 尝试获取传感器数据
+            try {
+                const sensorsResponse = await fetch('/api/sensors');
+                if (sensorsResponse.ok) {
+                    const responseData = await sensorsResponse.json();
+                    // 检查是否有错误或警告信息
+                    if (responseData.error) {
+                        missingData.push(`环境传感器数据 (${responseData.error})`);
+                        console.warn('⚠️ 传感器数据有错误:', responseData.error);
+                    } else if (responseData.warning) {
+                        missingData.push(`环境传感器数据 (${responseData.warning})`);
+                        console.warn('⚠️ 传感器数据警告:', responseData.warning);
+                    } else {
+                        sensorsData = responseData;
+                        console.log('✅ 成功获取传感器数据');
+                    }
+                } else {
+                    missingData.push('环境传感器数据');
+                    console.warn('⚠️ 传感器数据获取失败');
+                }
+            } catch (error) {
+                missingData.push('环境传感器数据');
+                console.error('❌ 传感器数据请求异常:', error);
+            }
+
+            // 处理数据缺失情况
+            if (missingData.length > 0) {
+                contextInfo += `⚠️ 数据缺失警告：\n`;
+                missingData.forEach(dataType => {
+                    contextInfo += `- 缺失：${dataType}\n`;
+                });
+                contextInfo += `\n请基于可用数据进行分析，并说明数据缺失对种植建议的影响。\n\n`;
+            }
+
+            // === 草莓检测数据分析 ===
+            if (strawberryData) {
+                contextInfo += "🍓 草莓检测状况：\n";
+                if (strawberryData.detection_count > 0) {
+                    contextInfo += `- 当前检测到: ${strawberryData.detection_count}个草莓\n`;
+
+                    // 详细成熟度分布
+                    if (strawberryData.detection_stats?.current_ripeness) {
+                        contextInfo += "- 成熟度分布：\n";
+                        const ripeness = strawberryData.detection_stats.current_ripeness;
+                        if (ripeness['Ripe'] > 0) contextInfo += `  * 成熟(Ripe): ${ripeness['Ripe']}个\n`;
+                        if (ripeness['Nearly Ripe'] > 0) contextInfo += `  * 接近成熟(Nearly Ripe): ${ripeness['Nearly Ripe']}个\n`;
+                        if (ripeness['Unripe'] > 0) contextInfo += `  * 未成熟(Unripe): ${ripeness['Unripe']}个\n`;
+                        if (ripeness['Rotten'] > 0) contextInfo += `  * 腐烂(Rotten): ${ripeness['Rotten']}个\n`;
+                    }
+
+                    // 质量指标
+                    contextInfo += `- 当前质量评分: ${strawberryData.detection_stats?.current_quality_score || 0}%\n`;
+                    contextInfo += `- 可收获数量: ${strawberryData.detection_stats?.current_harvest_ready || 0}个\n`;
+
+                    // 历史统计
+                    if (strawberryData.detection_stats?.total_detections) {
+                        contextInfo += `- 历史总检测数: ${strawberryData.detection_stats.total_detections}个\n`;
+                    }
+                } else {
+                    contextInfo += "- ❌ 当前未检测到草莓\n";
+                }
+                contextInfo += `\n`;
+            } else {
+                contextInfo += "❌ 草莓检测数据不可用\n\n";
+            }
+
+            // === 环境传感器数据分析 ===
+            if (sensorsData) {
+                contextInfo += "🌡️ 环境监测数据：\n";
+                const sensors = sensorsData.sensor_data || {};
+
+                // 温度数据
+                if (sensors.temperature && sensors.temperature.value !== null) {
+                    contextInfo += `- 温度: ${sensors.temperature.value}°C (状态: ${getStatusText(sensors.temperature.status)})\n`;
+                } else {
+                    contextInfo += `- 温度: 无数据\n`;
+                }
+
+                // 湿度数据
+                if (sensors.humidity && sensors.humidity.value !== null) {
+                    contextInfo += `- 湿度: ${sensors.humidity.value}% (状态: ${getStatusText(sensors.humidity.status)})\n`;
+                } else {
+                    contextInfo += `- 湿度: 无数据\n`;
+                }
+
+                // 光照数据
+                if (sensors.light && sensors.light.value !== null) {
+                    contextInfo += `- 光照: ${sensors.light.value}lux (状态: ${getStatusText(sensors.light.status)})\n`;
+                } else {
+                    contextInfo += `- 光照: 无数据\n`;
+                }
+                contextInfo += `\n`;
+            } else {
+                contextInfo += "❌ 环境传感器数据不可用\n\n";
+            }
+
+            // === 分析要求 ===
+            contextInfo += "🔍 请进行综合分析并提供建议：\n\n";
+
+            if (strawberryData) {
+                contextInfo += "📋 草莓状况分析：\n";
+                contextInfo += "1. 根据成熟度分布评估当前草莓发育状况\n";
+                contextInfo += "2. 分析质量评分，识别潜在问题\n";
+                contextInfo += "3. 判断最佳收获时机和收获策略\n";
+                contextInfo += "4. 如发现腐烂草莓，提供处理建议\n\n";
+            }
+
+            if (sensorsData) {
+                contextInfo += "🌱 环境条件分析：\n";
+                contextInfo += "1. 评估当前温度是否适宜草莓生长（最适18-25°C）\n";
+                contextInfo += "2. 分析湿度水平是否合理（最适60-80%）\n";
+                contextInfo += "3. 判断光照强度是否充足（最适15000-35000lux）\n";
+                contextInfo += "4. 识别环境参数中的异常或风险因子\n\n";
+            }
+
+            contextInfo += "💡 种植管理建议：\n";
+
+            if (sensorsData) {
+                contextInfo += "1. 基于环境数据提供浇水、通风、光照调节建议\n";
+                contextInfo += "2. 根据草莓发育阶段给出施肥建议\n";
+                contextInfo += "3. 提供病虫害预防措施\n";
+            } else {
+                contextInfo += "1. 提供通用的草莓种植管理建议\n";
+                contextInfo += "2. 基于草莓状况给出护理建议\n";
+            }
+
+            contextInfo += "4. 给出未来3-7天的管理计划\n";
+            contextInfo += "5. 如有异常指标，提供紧急处理方案";
+
+            if (missingData.length > 0) {
+                contextInfo += `\n\n⚠️ 注意：由于缺失${missingData.join('、')}，请在建议中说明这些数据缺失对种植管理建议的影响，并提供相应的替代方案。`;
+            }
+
+            document.getElementById('chatInput').value = contextInfo;
+            sendAIMessage();
+        }
+
+        // AI相关函数
+        async function testAI() {
+            const btn = document.getElementById('testAiBtn');
+            const apiUrl = document.getElementById('aiApiUrl').value;
+            const modelName = document.getElementById('aiModelName').value;
+
+            btn.disabled = true;
+            btn.textContent = '测试中...';
+
+            try {
+                const response = await fetch('/api/ai/test', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        api_url: apiUrl,
+                        model_name: modelName
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    addSystemMessage(`✅ AI连接成功！模型: ${result.model_name}`);
+                    updateAIStatus({
+                        enabled: true,
+                        status: 'connected'
+                    });
+                } else {
+                    addSystemMessage(`❌ AI连接失败: ${result.error || '未知错误'}`);
+                    updateAIStatus({
+                        enabled: false,
+                        status: result.status || 'error'
+                    });
+                }
+            } catch (error) {
+                console.error('❌ AI测试失败:', error);
+                addSystemMessage(`❌ AI测试失败: ${error.message}`);
+                updateAIStatus({
+                    enabled: false,
+                    status: 'error'
+                });
+            }
+
+            btn.disabled = false;
+            btn.textContent = '测试连接';
+        }
+
+        function sendAIMessage() {
+            const input = document.getElementById('chatInput');
+            const sendBtn = document.getElementById('chatSend');
+            const message = input.value.trim();
+
+            if (!message || isAIProcessing) return;
+
+            isAIProcessing = true;
+            sendBtn.disabled = true;
+            sendBtn.textContent = '发送中...';
+
+            // 通过WebSocket发送消息
+            socket.emit('ai_message', {
+                message: message,
+                context: null
+            });
+
+            input.value = '';
+        }
+
+        function handleAIResponse(data) {
+            removeLoadingMessage();
+
+            if (data.error) {
+                addAIMessage(`❌ 错误: ${data.error}`, 'ai');
+            } else if (data.response) {
+                addAIMessage(data.response, 'ai');
+            }
+
+            isAIProcessing = false;
+            const sendBtn = document.getElementById('chatSend');
+            sendBtn.disabled = false;
+            sendBtn.textContent = '发送';
+        }
+
+        function addAIMessage(content, sender) {
+            const chatMessages = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
+
+            const time = new Date().toLocaleTimeString();
+            messageDiv.innerHTML = `
+                <div style="white-space: pre-wrap;">${content}</div>
+                <div class="message-time">${time}</div>
+            `;
+
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function addSystemMessage(content) {
+            const chatMessages = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message system';
+
+            const time = new Date().toLocaleTimeString();
+            messageDiv.innerHTML = `
+                <div>${content}</div>
+                <div class="message-time">${time}</div>
+            `;
+
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function addLoadingMessage() {
+            const chatMessages = document.getElementById('chatMessages');
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'message ai loading-message';
+            loadingDiv.id = 'loadingMessage';
+            loadingDiv.innerHTML = `
+                <div class="loading">
+                    <span>AI正在思考</span>
+                    <div class="loading-dots">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                </div>
+            `;
+
+            chatMessages.appendChild(loadingDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function removeLoadingMessage() {
+            const loadingMessage = document.getElementById('loadingMessage');
+            if (loadingMessage) {
+                loadingMessage.remove();
+            }
+        }
+
+        // 其他更新函数（保持原有逻辑）
+        function startStatusUpdates() {
+            setInterval(function() {
+                updateUptime();
+                requestSystemInfo();
+            }, 1000);
+        }
+
+        function updateUptime() {
+            const uptime = Math.floor((Date.now() - systemStartTime) / 1000);
+            const hours = Math.floor(uptime / 3600);
+            const minutes = Math.floor((uptime % 3600) / 60);
+            const seconds = uptime % 60;
+
+            document.getElementById('uptime').textContent =
+                `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function updateSensorDisplay(sensors) {
+            for (const [sensorType, data] of Object.entries(sensors)) {
+                updateSingleSensor(sensorType, data);
+            }
+        }
+
+        function updateSingleSensor(sensorType, data) {
+            const valueElement = document.getElementById(`${sensorType}Value`);
+            const statusElement = document.getElementById(`${sensorType}Status`);
+            const cardElement = document.getElementById(`${sensorType}Card`);
+
+            if (valueElement && statusElement && cardElement) {
+                if (data.value !== null) {
+                    valueElement.textContent = `${data.value}${data.unit}`;
+                    statusElement.textContent = getStatusText(data.status);
+                    cardElement.className = `sensor-card ${data.status}`;
+                } else {
+                    valueElement.textContent = '--';
+                    statusElement.textContent = '等待数据';
+                    cardElement.className = 'sensor-card';
+                }
+            }
+        }
+
+        function getStatusText(status) {
+            const statusTexts = {
+                'optimal': '理想',
+                'good': '良好',
+                'low': '偏低',
+                'high': '偏高',
+                'warning': '警告',
+                'waiting': '等待'
+            };
+            return statusTexts[status] || '未知';
+        }
+
+        function updateDetectionDisplay(data) {
+            document.getElementById('totalDetections').textContent = data.stats?.total_detections || 0;
+            document.getElementById('currentDetections').textContent = data.detection_count || 0;
+            document.getElementById('processingTime').textContent = `${(data.stats?.processing_time || 0).toFixed(2)}s`;
+            document.getElementById('currentImage').textContent = data.image_filename || '--';
+
+            const badge = document.getElementById('detectionBadge');
+            if (data.detection_count > 0) {
+                badge.textContent = `检测到 ${data.detection_count} 个物体`;
+                badge.style.background = '#28a745';
+            } else {
+                badge.textContent = '未检测到物体';
+                badge.style.background = '#6c757d';
+            }
+
+            // 🎯 更新通用检测类别统计
+            updateObjectCategories(data.detections || []);
+            updateRecentDetections(data.detections || []);
+        }
+
+        // 🎯 新增：更新通用检测类别统计
+        function updateObjectCategories(detections) {
+            const categoriesContainer = document.getElementById('objectCategories');
+
+            if (detections.length === 0) {
+                categoriesContainer.innerHTML = `
+                    <div class="no-detections" style="text-align: center; color: #666; font-size: 12px; padding: 10px;">
+                        暂无检测结果
+                    </div>
+                `;
+                return;
+            }
+
+            // 统计各类别数量
+            const categoryCounts = {};
+            detections.forEach(detection => {
+                const className = detection.class_name || 'unknown';
+                categoryCounts[className] = (categoryCounts[className] || 0) + 1;
+            });
+
+            // 生成类别统计HTML
+            let categoriesHTML = '';
+            for (const [className, count] of Object.entries(categoryCounts)) {
+                const categoryInfo = getObjectCategoryInfo(className);
+                categoriesHTML += `
+                    <div class="object-category-item ${categoryInfo.cssClass}">
+                        <div class="category-icon">${categoryInfo.icon}</div>
+                        <div class="category-name">${categoryInfo.displayName}</div>
+                        <div class="category-count">${count}</div>
+                    </div>
+                `;
+            }
+
+            categoriesContainer.innerHTML = categoriesHTML;
+        }
+
+        // 🎯 新增：获取物体类别信息
+        function getObjectCategoryInfo(className) {
+            const categoryMap = {
+                'person': { icon: '👤', displayName: '人员', cssClass: 'person' },
+                'car': { icon: '🚗', displayName: '汽车', cssClass: 'car' },
+                'truck': { icon: '🚚', displayName: '卡车', cssClass: 'car' },
+                'bus': { icon: '🚌', displayName: '公交车', cssClass: 'car' },
+                'motorcycle': { icon: '🏍️', displayName: '摩托车', cssClass: 'car' },
+                'bicycle': { icon: '🚲', displayName: '自行车', cssClass: 'car' },
+                'bottle': { icon: '🍼', displayName: '瓶子', cssClass: 'bottle' },
+                'cup': { icon: '☕', displayName: '杯子', cssClass: 'bottle' },
+                'chair': { icon: '🪑', displayName: '椅子', cssClass: 'chair' },
+                'couch': { icon: '🛋️', displayName: '沙发', cssClass: 'chair' },
+                'dining table': { icon: '🍽️', displayName: '餐桌', cssClass: 'chair' },
+                'bed': { icon: '🛏️', displayName: '床', cssClass: 'chair' },
+                'cell phone': { icon: '📱', displayName: '手机', cssClass: 'phone' },
+                'laptop': { icon: '💻', displayName: '笔记本', cssClass: 'laptop' },
+                'mouse': { icon: '🖱️', displayName: '鼠标', cssClass: 'laptop' },
+                'keyboard': { icon: '⌨️', displayName: '键盘', cssClass: 'laptop' },
+                'tv': { icon: '📺', displayName: '电视', cssClass: 'laptop' },
+                'book': { icon: '📚', displayName: '书籍', cssClass: 'book' },
+                'clock': { icon: '⏰', displayName: '时钟', cssClass: 'book' },
+                'vase': { icon: '🏺', displayName: '花瓶', cssClass: 'book' },
+                'potted plant': { icon: '🪴', displayName: '盆栽', cssClass: 'book' },
+                'dog': { icon: '🐕', displayName: '狗', cssClass: 'person' },
+                'cat': { icon: '🐈', displayName: '猫', cssClass: 'person' },
+                'bird': { icon: '🐦', displayName: '鸟', cssClass: 'person' },
+                'apple': { icon: '🍎', displayName: '苹果', cssClass: 'bottle' },
+                'banana': { icon: '🍌', displayName: '香蕉', cssClass: 'bottle' },
+                'orange': { icon: '🍊', displayName: '橙子', cssClass: 'bottle' },
+                'broccoli': { icon: '🥦', displayName: '西兰花', cssClass: 'bottle' },
+                'carrot': { icon: '🥕', displayName: '胡萝卜', cssClass: 'bottle' }
+            };
+
+            return categoryMap[className] || {
+                icon: '📦',
+                displayName: className.charAt(0).toUpperCase() + className.slice(1),
+                cssClass: 'common'
+            };
+        }
+
+        function updateRecentDetections(detections) {
+            const list = document.getElementById('recentDetectionsList');
+            if (detections.length === 0) {
+                list.innerHTML = '<li>暂无检测结果</li>';
+                return;
+            }
+
+            list.innerHTML = '';
+            detections.slice(0, 5).forEach(detection => {
+                const li = document.createElement('li');
+                li.textContent = `${detection.class_name}: ${(detection.confidence * 100).toFixed(1)}%`;
+                list.appendChild(li);
+            });
+        }
+
+        function updateVideoFrame(data) {
+            // 🎯 更新通用检测面板（原始图像）
+            const videoFrame = document.getElementById('videoFrame');
+            const placeholder = document.getElementById('videoPlaceholder');
+            const overlay = document.getElementById('videoOverlay');
+            const frameInfo = document.getElementById('frameInfo');
+            const detectionCount = document.getElementById('detectionCount');
+
+            // 🍓 更新草莓检测面板（原始图像）
+            const strawberryFrame = document.getElementById('strawberryFrame');
+            const strawberryPlaceholder = document.getElementById('strawberryPlaceholder');
+            const strawberryOverlay = document.getElementById('strawberryOverlay');
+            const strawberryFrameInfo = document.getElementById('strawberryFrameInfo');
+            const strawberryCount = document.getElementById('strawberryCount');
+
+            if (data.frame) {
+                // 🎯 通用检测面板显示原始图像（如果没有单独的标注图像）
+                videoFrame.src = 'data:image/jpeg;base64,' + data.frame;
+                videoFrame.style.display = 'block';
+                placeholder.style.display = 'none';
+                overlay.style.display = 'block';
+
+                frameInfo.textContent = `Frame: ${data.frame_count || 0}`;
+                detectionCount.textContent = `检测: ${data.general_detection_count || 0} 个物体`;
+
+                // 🍓 草莓检测面板显示原始图像（如果没有单独的标注图像）
+                strawberryFrame.src = 'data:image/jpeg;base64,' + data.frame;
+                strawberryFrame.style.display = 'block';
+                strawberryPlaceholder.style.display = 'none';
+                strawberryOverlay.style.display = 'block';
+
+                strawberryFrameInfo.textContent = `🍓 ${data.image_filename || 'unknown'}`;
+                strawberryCount.textContent = `草莓: ${data.strawberry_count || 0} 个`;
+
+                updateCameraStatus({status: 'online'});
+            }
+        }
+
+        // 🎯 新增：更新通用检测标注图像
+        function updateGeneralFrame(data) {
+            const videoFrame = document.getElementById('videoFrame');
+            const placeholder = document.getElementById('videoPlaceholder');
+            const overlay = document.getElementById('videoOverlay');
+            const frameInfo = document.getElementById('frameInfo');
+            const detectionCount = document.getElementById('detectionCount');
+
+            if (data.frame) {
+                videoFrame.src = 'data:image/jpeg;base64,' + data.frame;
+                videoFrame.style.display = 'block';
+                placeholder.style.display = 'none';
+                overlay.style.display = 'block';
+
+                frameInfo.textContent = `🎯 检测标注: ${data.image_filename || 'unknown'}`;
+                detectionCount.textContent = `检测: ${data.detection_count || 0} 个物体`;
+
+                console.log('🎯 通用检测标注图像已更新');
+            }
+        }
+
+        function updateSystemStatus(data) {
+            const systemInfoList = document.getElementById('systemInfoList');
+            systemInfoList.innerHTML = `
+                <li>MQTT: ${data.mqtt_connected ? '已连接' : '未连接'}</li>
+                <li>通用检测: ${data.detection_enabled ? '已启用' : '未启用'}</li>
+                <li>草莓检测: ${strawberryEnabled ? '已启用' : '未启用'}</li>
+                <li>测试模式: ${data.test_mode ? '是' : '否'}</li>
+                <li>AI助手: ${data.ai_enabled ? '已连接' : '未连接'}</li>
+            `;
+        }
+
+        function updateMQTTStatus(data) {
+            const statusDot = document.getElementById('mqttStatus');
+            const statusText = document.getElementById('mqttText');
+
+            if (data.connected) {
+                statusDot.classList.add('connected');
+                statusText.textContent = '已连接';
+            } else {
+                statusDot.classList.remove('connected');
+                statusText.textContent = '未连接';
+            }
+        }
+
+        function updateCameraStatus(data) {
+            const statusDot = document.getElementById('cameraStatus');
+            const statusText = document.getElementById('cameraText');
+
+            if (data.status === 'online') {
+                statusDot.classList.add('connected');
+                statusText.textContent = '在线';
+            } else {
+                statusDot.classList.remove('connected');
+                statusText.textContent = '离线';
+            }
+        }
+
+        function updateAIStatus(data) {
+            const statusDot = document.getElementById('aiStatus');
+            const statusText = document.getElementById('aiText');
+            const badge = document.getElementById('aiBadge');
+
+            if (data.enabled && data.status === 'connected') {
+                statusDot.classList.add('connected');
+                statusText.textContent = '已连接';
+                badge.textContent = '已连接';
+                badge.style.background = '#28a745';
+            } else {
+                statusDot.classList.remove('connected');
+                statusText.textContent = '未连接';
+                badge.textContent = '未连接';
+                badge.style.background = '#dc3545';
+            }
+        }
+
+        function requestSystemInfo() {
+            if (socket && socket.connected) {
+                socket.emit('request_sensors');
+                socket.emit('request_detections');
+            }
+        }
+
+        // 在页面加载完成后自动请求草莓状态
+        setTimeout(() => {
+            requestStrawberryStatus();
+        }, 3000);
+
+        // 定期更新草莓状态
+        setInterval(() => {
+            if (strawberryEnabled) {
+                // 可以在这里添加定期状态检查
+            }
+        }, 30000); // 每30秒检查一次
+
+        console.log('🍓 完整版草莓检测前端代码已加载');
+    </script>
+</body>
+</html>

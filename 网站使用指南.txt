@@ -1,0 +1,22 @@
+anaconda3\envs：运行代码所需环境
+yolov5-master是训练好的本地草莓模型，内含训练文件，测试文件以及训练好的权重best.pt。和yolov5模型的yolov5s.pt
+网站ai：
+enhanced_strawberry_system.py是网站的后端代码。
+templates：strawberry_enhanced.html是网站前端代码。
+ 
+ 存储数据：
+ strawberry_results用于存储草莓检测标注结果。
+ detection_results用于存储通用物体检测标注结果。
+ stra.yaml是模型的类别
+enhanced_strawberry_system.py修改：
+MQTT_BROKER = "192.168.187.81"  # 你的MQTT服务器地址
+MQTT_PORT = 1883#端口号
+MQTT_BROKER = "192.168.187.81"。需要修改成你电脑的ip地址
+MQTT_PORT = 1883是你电脑防火墙设置可以接收数据的的端口号
+
+完成操作后运行enhanced_strawberry_system.py文件在终端访问网站：http://localhost:5000
+
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.187.81:5000
+注意不同的电脑有不同IP地址，修改ip地址即可
