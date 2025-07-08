@@ -1,0 +1,14 @@
+path: ../datasets/Ripe and unripe strawberries.v1i.yolov5pytorch # dataset root dir
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 2
+names: ['Ripe', 'Unripe']
+
+roboflow:
+  workspace: mengelolah-data
+  project: ripe-and-unripe-strawberries
+  version: 1
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/mengelolah-data/ripe-and-unripe-strawberries/dataset/1

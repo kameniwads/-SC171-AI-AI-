@@ -1,0 +1,14 @@
+path: ../datasets/data1-10.v1i.yolov5pytorch # dataset root dir
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 4
+names: ['Nearly Ripe', 'Ripe', 'Rotten', 'Unripe']
+
+roboflow:
+  workspace: sun-chuanye-ejnzp
+  project: data1-10-ahnjf-mngeb
+  version: 1
+  license: MIT
+  url: https://app.roboflow.com/sun-chuanye-ejnzp/data1-10-ahnjf-mngeb/1
