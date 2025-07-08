@@ -1,0 +1,1 @@
+把除了SC171V3 VScode，Stm32NUCLEO-L432KC mbed，网站ai，CV的文件保存到yolov5-master里面。然后再把yolov5-master，网站ai，CV的文件保存到一个文件夹里才可以使用。
