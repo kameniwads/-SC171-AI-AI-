@@ -1,0 +1,30 @@
+连线：
+STM32NUCLEO-L432KC和TMP102i2C通信使用D4,D5引脚，D4:SDA D5:SCL
+SC171V3通过UART1的接口与STM32NUCLEO-L432KC开发板连接
+土壤湿度传感器接SC171V3开发板的雨水传感器的ADC0
+光敏电阻传感器：连接SC171V3的光照传感器接口ADC1
+USB高清无畸形变1200万自动对焦4k免驱UVC工业linux摄像头：接到SC171V3开发板的摄像头接口，设备名为/dev/video2
+
+SC171V3： 
+完成开发板的WIFI配置后，使用VScode的SSH远程连接开发板。
+其代码存储在SC171V3 VScode文件里。
+ar_trch.py：集成了传感器和自动浇水功能，使用MQTT协议传输传感器数据到服务器
+usbcamera_test.py：使用MQTT协议传输视频流到服务器。
+yolo.py：用于测试网站上的草莓智能识别成熟度是否可以良好运行。
+
+temperature.py：温度模块，作为RX采用UART通信读取连接在SC171V3 UART1上的STM32NUCLEO-L432KC上发送的温度数据。在使用UART通信前需要先Serial port setup：修改设备名为“/dev/ttyHS1”
+
+moisture_printer.py土壤湿度模块接SC171V3开发板的雨水传感器的ADC0
+light.py：光敏电阻传感器模块：连接SC171V3的光照传感器接口ADC1
+
+
+STM32NUCLEO-L432KC：
+使用keil studio或者离线版mbed studio软件烧录代码，其代码储存在Stm32NUCLEO-L432KC mbed文件里。
+代码通过i2C协议读取TMP102温度传感器的温度数据
+作为TX采用UART通信协议传输温度数据到SC171V3
+
+
+website网站部署：
+利用可以运行python代码的软件，我们采用的pycharm。需要配置anaconda3\envs环境。
+更具体的操作在website python文件里的网站使用指南里。
+
